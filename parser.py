@@ -45,7 +45,7 @@ class Element(object):
 
     def xpath(self, path):
         '''
-        only accepts //tag and only descends to where it finds one or more
+        only intended for //body and only descends to where it finds one or more
         '''
         if not path.startswith('//'):
             raise NotImplementedError('Only accepts xpath format //tag')
@@ -60,6 +60,13 @@ class Element(object):
                     result = child.xpath(path)
                     if result:
                         return result
+            if tag == 'body':  # it must not have been found
+                # assuming this is the 'etree' element, make *this* the body
+                logging.debug('xpath has not found %r from %r', tag, self.tag)
+                if self.tag == 'etree':
+                    self.tag == tag 
+                    return [self]
+            logging.error('xpath cannot find %r', tag) 
 
 class HTMLParser(BaseParser):
     '''
@@ -71,9 +78,11 @@ class HTMLParser(BaseParser):
         # can't use super because python2 implementation is old-style class
         BaseParser.__init__(self, *args)  # don't pass in kwargs
         for arg in kwargs:
+            logging.debug('Parser setting %s to %s', arg, kwargs[arg])
             setattr(self, arg, kwargs[arg])
         self.stack = [Element('etree', [], docinfo=type('Docinfo', (),
-                                                        {'encoding': 'utf8'}))]
+                                                        {'encoding': 'utf8'}),
+                                           base_url=self.base_url)]
 
     def handle_starttag(self, tag, attributes):
         logging.debug('starttag: %s, attributes: %s', tag, attributes)
@@ -84,7 +93,7 @@ class HTMLParser(BaseParser):
         logging.debug('endtag: %s, expected: %s', tag, expected)
         if expected != tag:
             logging.error('Unexpected end tag %r instead of %r',
-                          (tag, expected))
+                          tag, expected)
             while self.stack[-1].tag != tag and len(self.stack) > 3:
                 logging.warning('Forcing %s closed', self.stack[-1])
                 self.handle_endtag(self.stack[-1].tag)
@@ -125,7 +134,7 @@ def parse(file_object, parser=None):
         if hasattr(file_object, 'url'):
             logging.debug('file_object.url: %s', file_object.url)
         raise
-    parser = HTMLParser(base_url = base_url)
+    parser = HTMLParser(base_url=base_url)
     parser.feed(decode(file_object.read()))
     parser.close()
     if len(parser.stack) != 1:

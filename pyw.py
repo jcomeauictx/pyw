@@ -89,7 +89,7 @@ def fetch(terms=None):
         logging.info('page.info: %s', page.info())
     else:
         raise NotImplementedError('Search engine support not yet implemented')
-    tree = html.parse(page, parser=html.HTMLParser(remove_comments=True))
+    tree = html.parse(page)
     page.close()
     return tree
 
