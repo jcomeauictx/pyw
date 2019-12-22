@@ -234,6 +234,10 @@ if __name__ == '__main__':
     # action on invoking program directly rather than importing it
     init()
     if WINDOW:
-        curses.wrapper(pyw, sys.argv[1:])  # WINDOW is automatically passed
+        try:
+            curses.wrapper(pyw, sys.argv[1:])  # WINDOW is automatically passed
+        except Exception:
+            logging.exception("Program error")
+            raise
     else:
         pyw(WINDOW, sys.argv[1:])
