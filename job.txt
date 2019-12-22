@@ -1,0 +1,1 @@
+write browser in Python or other high-level language with small memory footprint.
