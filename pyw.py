@@ -203,6 +203,7 @@ def activate(line, links, base_url):  # pylint: disable=unused-argument
     href = urlparse.urljoin(base_url, links[here])
     logging.debug('going to: %s', href)
     pyw(WINDOW, [href])
+    return 0  # back to line 1
 
 def cleanup(string, need_space=False):
     '''
