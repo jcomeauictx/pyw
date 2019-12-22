@@ -12,6 +12,25 @@ except ImportError:  # python3
     from html.parser import HTMLParser as BaseParser
     from html.entities import name2codepoint
 
+CHILDLESS = (  # elements that cannot contain subelements
+    'area',
+    'base',
+    'br',
+    'col',
+    'command',
+    'embed',
+    'hr',
+    'img',
+    'input',
+    'keygen',
+    'link',
+    'meta',
+    'param',
+    'source',
+    'track',
+    'wbr',
+)
+
 class ParserError(ValueError):
     pass
 
@@ -86,6 +105,10 @@ class HTMLParser(BaseParser):
 
     def handle_starttag(self, tag, attributes):
         logging.debug('starttag: %s, attributes: %s', tag, attributes)
+        parent = self.stack[-1].tag
+        if parent in CHILDLESS:
+            logging.warning('closing previous %r tag', parent)
+            self.handle_endtag(parent)
         self.stack.append(Element(tag, attributes, base_url=self.base_url))
 
     def handle_endtag(self, tag):
