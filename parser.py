@@ -30,7 +30,13 @@ CHILDLESS = (  # elements that cannot contain subelements
     'track',
     'wbr',
 )
-
+AUTOCLOSE = {  # elements which automatically close if followed by certain tags
+    'p': ('address', 'article', 'aside', 'blockquote', 'details', 'div', 'dl',
+          'fieldset', 'figcaption', 'figure', 'footer', 'form', 'h1', 'h2',
+          'h3', 'h4', 'h5', 'h6', 'header', 'hgroup', 'hr', 'main', 'menu',
+          'nav', 'ol', 'p', 'pre', 'section', 'table', 'ul'),
+    'rt': ('rt', 'rp'),
+}
 class ParserError(ValueError):
     pass
 
@@ -108,6 +114,9 @@ class HTMLParser(BaseParser):
         parent = self.stack[-1].tag
         if parent in CHILDLESS:
             logging.warning('closing previous %r tag', parent)
+            self.handle_endtag(parent)
+        elif parent in tuple(AUTOCLOSE.keys()) and tag in AUTOCLOSE[parent]:
+            logging.warning('autoclosing previous %r tag', parent)
             self.handle_endtag(parent)
         self.stack.append(Element(tag, attributes, base_url=self.base_url))
 
