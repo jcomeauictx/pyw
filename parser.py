@@ -11,7 +11,7 @@ try:
 except ImportError:  # python3
     from html.parser import HTMLParser as BaseParser
     from html.entities import name2codepoint
-
+# see https://html.spec.whatwg.org/multipage/syntax.html
 CHILDLESS = (  # elements that cannot contain subelements
     'area',
     'base',
