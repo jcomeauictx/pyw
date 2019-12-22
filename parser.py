@@ -34,7 +34,7 @@ class Element(object):
     def __repr__(self):
         return '<Element <%s %s> text=%r tail=%r children=%s>' % (
                 self.tag, self.attrib, clean(self.text), clean(self.tail),
-                self.children)
+                len(self.children))
     __str__ = __repr__
     
     def getroot(self):
@@ -85,10 +85,13 @@ class HTMLParser(BaseParser):
         if expected != tag:
             logging.error('Unexpected end tag %r instead of %r',
                           (tag, expected))
-            while self.stack[-1].tag != tag:
+            while self.stack[-1].tag != tag and len(self.stack) > 3:
                 logging.warning('Forcing %s closed', self.stack[-1])
                 self.handle_endtag(self.stack[-1].tag)
-        self.stack[-2].children.append(self.stack.pop(-1))
+        try:
+            self.stack[-2].children.append(self.stack.pop(-1))
+        except IndexError:
+            logging.error('No place for child node to go')
 
     def handle_data(self, data):
         logging.debug('data: %s', data)

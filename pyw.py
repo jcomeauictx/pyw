@@ -214,7 +214,7 @@ def cleanup(string, need_space=False):
     all_spaces = not_none.isspace()
     space_preceding = ''
     if clean and not all_spaces:
-        if need_space or not_none[0].isspace():
+        if need_space:
             space_preceding = ' '
         if not_none[-1].isspace():
             need_space = True
