@@ -1,6 +1,7 @@
 URL ?= file://$(PWD)/test.html
 # `make V=` to use python2 instead
 V ?= 3
+# set IMPURE_PYTHON to 1 in order to use lxml parser instead of pure Python
 IMPURE_PYTHON ?=
 export
 pyw: pyw.py
