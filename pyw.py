@@ -45,6 +45,13 @@ ACTIONS = {
     '\t': 'advance_cursor',
     '\n': 'activate',
 }
+URLS = []  # list of URLs being traversed
+LINKS = []  # dicts of links for each URL in URLS
+STATE = {
+    'urlindex': -1,  # -1 forces load of most recently appended URL
+    'line': 0,  # first line of virtual screen showing on console
+    'needs_redraw': True,
+}
 # display attributes for tags
 # tag: [attribute, newline_before, newline_after]
 DEFAULT = [curses.A_NORMAL, False, False]
@@ -93,39 +100,47 @@ def fetch(terms=None):
     page.close()
     return tree
 
-def pyw(window=WINDOW, args=None):
+def pyw(window=WINDOW, url=None):
     '''
     navigate the web, starting at website
     '''
-    logging.debug('arguments: %s, %s', window, args)
-    tree = fetch(args)
-    body = tree.getroot().xpath('//body')[0]
-    encoding = tree.docinfo.encoding or 'utf8'
-    logging.debug('base URL: %s, encoding: %s', body.base_url, encoding)
-    if window is None:  # just dump to stdout
-        page = body.text_content()
-        ignored, text, ignored = cleanup(page) #pylint: disable=unused-variable
-        print(text)
-    else:
-        window.clear()
-        window.refresh()  # https://stackoverflow.com/a/22121866/493161
-        windowbuffer = curses.newpad(MAXLINES, WIDTH)
-        in_key = ''
-        line = 0
-        links = OrderedDict({(0, 0): '.'})
-        while in_key != 'q':
+    in_key = ''
+    while in_key != 'q':
+        if url and not URLS:
+            URLS.append(url)
+        if STATE['index'] == -1:
+            tree = fetch(URLS[STATE['index']])
+            body = tree.getroot().xpath('//body')[0]
+            encoding = tree.docinfo.encoding or 'utf8'
+            logging.debug('base URL: %s, encoding: %s', body.base_url, encoding)
+            STATE['index'] = len(URLS) - 1
+        if window is None:  # just dump to stdout
+            page = body.text_content()
+            #pylint: disable=unused-variable
+            ignored, text, ignored = cleanup(page)
+            print(text)
+            in_key = 'q'
+            break
+        elif STATE['needs_redraw']:
+            window.clear()
+            window.refresh()  # https://stackoverflow.com/a/22121866/493161
+            windowbuffer = curses.newpad(MAXLINES, WIDTH)
+            LINKS[STATE['index']] = OrderedDict({(0, 0): '.'})
             windowbuffer.clear()
-            render(windowbuffer, body, links)
-            if links:
-                curses.curs_set(1)  # make cursor visible
-                logging.debug('links: %s', links)
-            logging.debug('displaying from line %d', line)
-            windowbuffer.refresh(line, 0, 0, 0, HEIGHT - 1, WIDTH - 1)
+            render(windowbuffer, body)
+        if STATE['cursor_position'] != (-1, -1):
+            cursor_position = list(STATE['cursor_position'])
+            while cursor_position[0] >= HEIGHT:
+                cursor_position[0] -= HEIGHT
+            window.move(*STATE['cursor_position'])
+            curses.curs_set(2)  # make cursor visible
+            logging.debug('links: %s', LINKS[STATE['index']])
+            logging.debug('displaying from line %d', STATE['line'])
+            windowbuffer.refresh(STATE['line'], 0, 0, 0, HEIGHT - 1, WIDTH - 1)
             in_key = window.getkey()
-            line = do_associated_action(in_key, line, links, body.base_url)
+            do_associated_action(in_key)
 
-def render(screen, element, links, parent_attributes=curses.A_NORMAL,
-           need_space=False):
+def render(element, parent_attributes=curses.A_NORMAL, need_space=False):
     '''
     add rendered element to screen
 
@@ -133,6 +148,8 @@ def render(screen, element, links, parent_attributes=curses.A_NORMAL,
     '''
     if element.tag in ('script', 'style'):
         return need_space
+    screen = WINDOW
+    links = LINKS[STATE['index']]
     attributes, newline_before, newline_after = DISPLAY[element.tag]
     attributes = (attributes | parent_attributes, parent_attributes)
     if newline_before:
@@ -156,18 +173,19 @@ def render(screen, element, links, parent_attributes=curses.A_NORMAL,
         need_space = False
     return need_space
 
-def do_associated_action(keyhit, line, links, base_url):
+def do_associated_action(keyhit):
     '''
     map keyhit to action, and execute it
     '''
     logging.debug('keyhit: %s', keyhit)
     if keyhit in ACTIONS:
-        line = eval(ACTIONS[keyhit])(line, links, base_url)
+        line = eval(ACTIONS[keyhit])()
     elif keyhit != 'q':
         logging.warning('no association for "%s"', keyhit)
     return line
 
-def advance_page(line, links, base_url):  #pylint: disable=unused-argument
+# actions resulting from keyhits
+def advance_page():
     '''
     go forward one page in buffer
     '''
