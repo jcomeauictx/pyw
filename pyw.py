@@ -180,49 +180,50 @@ def do_associated_action(keyhit):
     '''
     logging.debug('keyhit: %s', keyhit)
     if keyhit in ACTIONS:
-        line = eval(ACTIONS[keyhit])()
+        eval(ACTIONS[keyhit])(PAGES[STATE['urlindex']])
     elif keyhit != 'q':
         logging.warning('no association for "%s"', keyhit)
-    return line
 
 # actions resulting from keyhits
-def advance_page():
+def advance_page(webpage):
     '''
     go forward one page in buffer
     '''
-    index = line + HEIGHT
+    index = webpage.line + HEIGHT
     if index > MAXLINES - HEIGHT:
         index = MAXLINES - HEIGHT
-    return index
+    webpage.line = index
 
-def back_one_page(line, links, base_url):  #pylint: disable=unused-argument
+def back_one_page(webpage):
     '''
     go back one page in buffer
     '''
-    index = line - HEIGHT
+    index = webpage.line - HEIGHT
     if index < 0:
         index = 0
-    return index
+    webpage.line = index
 
-def advance_cursor(line, links, base_url):  #pylint: disable=unused-argument
+def advance_cursor(webpage):
     '''
     move cursor to next link or form field
     '''
-    locations = list(links.keys())
-    here = WINDOW.getyx()
-    new = locations.index(here) + 1
-    WINDOW.move(*locations[new])
-    return line
+    locations = list(webpage.links.keys())
+    here = tuple(add_height(webpage.line, WINDOW.getyx()))
+    new = subtract_height(webpage.line, locations[locations.index(here) + 1])
+    while new[0] > HEIGHT:
+        webpage.line += HEIGHT
+        new[0] -= HEIGHT
+    WINDOW.move(*new)
 
-def activate(line, links, base_url):  # pylint: disable=unused-argument
+def activate(webpage):
     '''
     visit link at cursor, or submit current form
     '''
     here = WINDOW.getyx()
-    href = urlparse.urljoin(base_url, links[here])
+    href = urlparse.urljoin(webpage.url, links[here])
     logging.debug('going to: %s', href)
-    pyw(WINDOW, [href])
-    return 0  # back to line 1
+    PAGES.append(Page(href))
+    STATE['urlindex'] = -1
 
 def cleanup(string, need_space=False):
     '''
@@ -249,6 +250,18 @@ def canonicalize(url):
     if not parsed.scheme and not parsed.netloc:
         parsed = parsed._replace(scheme='http', netloc=parsed.path, path='/')
     return urlparse.urlunparse(parsed)
+
+def add_height(height, position):
+    '''
+    make a list out of tuple `position` and add height to it
+    '''
+    return [position[0] + height, position[1]]
+
+def subtract_height(height, position):
+    '''
+    make a list out of tuple `position` and subtract height from it
+    '''
+    return [position[0] - height, position[1]]
 
 if __name__ == '__main__':
     # action on invoking program directly rather than importing it
