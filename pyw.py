@@ -49,7 +49,7 @@ PAGES = []  # list of Pages being traversed
 STATE = {  # global state
     'urlindex': -1,  # -1 forces load of most recently appended URL
 }
-# display attributes for tags
+# display attributes (style) for tags
 # tag: [attribute, newline_before, newline_after]
 DEFAULT = [curses.A_NORMAL, False, False]
 DISPLAY = defaultdict(lambda: DEFAULT, {
@@ -71,7 +71,7 @@ class Page(object):
         initialize a new Page object
         '''
         self.url = canonicalize(url)
-        self.links = [OrderedDict({(0, 0): '.'})]
+        self.links = OrderedDict({(0, 0): '.'})
         self.buffer = curses.newpad(MAXLINES, WIDTH)
         self.needs_redraw = True
         self.line = 0  # index into buffer of first line showing
@@ -140,7 +140,7 @@ def pyw(window=WINDOW, url=None):
             in_key = window.getkey()
             do_associated_action(in_key)
 
-def render(element, parent_attributes=curses.A_NORMAL, need_space=False):
+def render(screen, element, parent_style=curses.A_NORMAL, need_space=False):
     '''
     add rendered element to screen
 
@@ -148,26 +148,25 @@ def render(element, parent_attributes=curses.A_NORMAL, need_space=False):
     '''
     if element.tag in ('script', 'style'):
         return need_space
-    screen = WINDOW
-    links = LINKS[STATE['index']]
-    attributes, newline_before, newline_after = DISPLAY[element.tag]
-    attributes = (attributes | parent_attributes, parent_attributes)
+    links = PAGES[STATE['urlindex']].links
+    style, newline_before, newline_after = DISPLAY[element.tag]
+    style = (style | parent_style, parent_style)
     if newline_before:
         screen.addstr('\n')
     space, text, need_space = cleanup(element.text, need_space)
     if text:
-        screen.addstr(space, attributes[1])
+        screen.addstr(space, style[1])
         if element.attrib.get('href'):
             links[screen.getyx()] = element.attrib['href']
         logging.debug('element.text: %r, %r', text, encode(text))
-        screen.addstr(encode(text), attributes[0])
+        screen.addstr(encode(text), style[0])
     space, text, need_space = cleanup(element.tail, need_space)
     if text:
-        screen.addstr(space, attributes[1])
+        screen.addstr(space, style[1])
         logging.debug('element.tail: %r, %r', text, encode(text))
-        screen.addstr(encode(text), attributes[1])
+        screen.addstr(encode(text), style[1])
     for child in element.iterchildren():
-        need_space = render(screen, child, links, attributes[0], need_space)
+        need_space = render(screen, child, style[0], need_space)
     if newline_after:
         screen.addstr('\n')
         need_space = False
