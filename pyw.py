@@ -64,7 +64,10 @@ DISPLAY = defaultdict(lambda: DEFAULT, {
     'div': [curses.A_NORMAL, True, True],
 })
 
-class Page(object):
+class Page(object):  #pylint: disable=useless-object-inheritance
+    '''
+    encapsulates a URL with its content, linklist, and display state
+    '''
 
     def __init__(self, url):
         '''
