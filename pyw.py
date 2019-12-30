@@ -130,6 +130,7 @@ def pyw(window=WINDOW, url=None):
             window.clear()
             window.refresh()  # https://stackoverflow.com/a/22121866/493161
             render(page.buffer, body)
+            page.needs_redraw = False
         if page.curpos != (-1, -1):
             logging.debug('setting cursor')
             cursor_position = list(page.curpos)
@@ -213,7 +214,8 @@ def advance_cursor(webpage):
     while new[0] > HEIGHT:
         webpage.line += HEIGHT
         new[0] -= HEIGHT
-    WINDOW.move(*new)
+        webpage.needs_redraw = True
+    webpage.curpos = tuple(new)
 
 def activate(webpage):
     '''
