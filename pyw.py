@@ -6,7 +6,7 @@ minimalist text web browser
 from __future__ import print_function
 import sys, os, tempfile, logging, curses, locale
 from collections import defaultdict, OrderedDict
-from parser import encode, decode
+from parser import encode
 # if you want more robust HTTP and HTML handling, and don't mind it not being
 # pure Python, use `from lxml import html`.
 if os.getenv('IMPURE_PYTHON'):
@@ -38,12 +38,15 @@ DEFAULT_URL = os.getenv('PYW_STARTPAGE', 'https://startpage.com/')
 USER_AGENT = os.getenv('PYW_USER_AGENT', 'Mozilla/5.0 '
                        '(X11; U; Linux i686; en-US; rv:1.9.0.16)')
 MAXLINES = 10000
+# a lot of these actions borrowed from lynx, links, and w3m
 ACTIONS = {
-    'j': 'advance_page',
-    ' ': 'advance_page',
-    'p': 'back_one_page',
+    'j': 'screen_down',
+    ' ': 'screen_down',
+    'p': 'screen_up',
     '\t': 'advance_cursor',
     '\n': 'activate',
+    'KEY_LEFT': 'previous_page',
+    'B': 'previous_page',
 }
 PAGES = []  # list of Pages being traversed
 STATE = {  # global state
@@ -189,7 +192,7 @@ def do_associated_action(keyhit):
         logging.warning('no association for "%s"', keyhit)
 
 # actions resulting from keyhits
-def advance_page(webpage):
+def screen_down(webpage):
     '''
     go forward one page in buffer
     '''
@@ -198,7 +201,7 @@ def advance_page(webpage):
         index = MAXLINES - HEIGHT
     webpage.line = index
 
-def back_one_page(webpage):
+def screen_up(webpage):
     '''
     go back one page in buffer
     '''
@@ -231,6 +234,15 @@ def activate(webpage):
     PAGES[STATE['urlindex'] + 1:] = []
     PAGES.append(Page(href))
     STATE['urlindex'] = -1
+
+def previous_page(webpage):  #pylint: disable=unused-argument
+    '''
+    "backpage" -- backup through link chain
+    '''
+    index = STATE['urlindex']
+    if index > 0:
+        STATE['urlindex'] -= 1
+        PAGES[index - 1].needs_refresh = True
 
 def cleanup(string, need_space=False):
     '''
