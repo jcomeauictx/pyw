@@ -44,6 +44,7 @@ ACTIONS = {
     ' ': 'screen_down',
     'p': 'screen_up',
     '\t': 'advance_cursor',
+    'KEY_BTAB': 'backup_cursor',
     '\n': 'activate',
     'KEY_LEFT': 'previous_page',
     'B': 'previous_page',
@@ -223,11 +224,24 @@ def advance_cursor(webpage):
         webpage.needs_redraw = True
     webpage.curpos = tuple(new)
 
+def backup_cursor(webpage):
+    '''
+    move cursor to previous link or form field
+    '''
+    locations = list(webpage.links.keys())
+    here = tuple(add_height(webpage.line, WINDOW.getyx()))
+    new = subtract_height(webpage.line, locations[locations.index(here) - 1])
+    while new[0] < HEIGHT:
+        webpage.line -= HEIGHT
+        new[0] += HEIGHT
+        webpage.needs_redraw = True
+    webpage.curpos = tuple(new)
+
 def activate(webpage):
     '''
     visit link at cursor, or submit current form
     '''
-    here = WINDOW.getyx()
+    here = add_height(webpage.line, WINDOW.getyx())
     href = urlparse.urljoin(webpage.url, webpage.links[here])
     logging.debug('going to: %s', href)
     # truncate the Pages to just this one and those before it
