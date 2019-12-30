@@ -45,12 +45,9 @@ ACTIONS = {
     '\t': 'advance_cursor',
     '\n': 'activate',
 }
-URLS = []  # list of URLs being traversed
-LINKS = []  # dicts of links for each URL in URLS
-STATE = {
+PAGES = []  # list of Pages being traversed
+STATE = {  # global state
     'urlindex': -1,  # -1 forces load of most recently appended URL
-    'line': 0,  # first line of virtual screen showing on console
-    'needs_redraw': True,
 }
 # display attributes for tags
 # tag: [attribute, newline_before, newline_after]
@@ -66,6 +63,29 @@ DISPLAY = defaultdict(lambda: DEFAULT, {
     'p': [curses.A_NORMAL, True, True],
     'div': [curses.A_NORMAL, True, True],
 })
+
+class Page(object):
+
+    def __init__(self, url):
+        '''
+        initialize a new Page object
+        '''
+        self.url = canonicalize(url)
+        self.links = [OrderedDict({(0, 0): '.'})]
+        self.buffer = curses.newpad(MAXLINES, WIDTH)
+        self.needs_redraw = True
+        self.line = 0  # index into buffer of first line showing
+        self.curpos = (-1, -1)  # cursor position
+        self.etree = None
+        self.fetch()
+
+    def fetch(self):
+        '''
+        fetch the contents of the URL and set attributes accordingly
+        '''
+        page = urllib2.urlopen(self.url)
+        self.etree = html.parse(page)
+        page.close()
 
 def init():
     '''
@@ -85,58 +105,38 @@ def init():
     opener.addheaders = [['User-agent', USER_AGENT]]
     urllib2.install_opener(opener)
 
-def fetch(terms=None):
-    '''
-    get webpage
-    '''
-    terms = terms or [DEFAULT_URL]
-    logging.debug('terms: %s', terms)
-    if len(terms) == 1:
-        page = urllib2.urlopen(canonicalize(terms[0]))
-        logging.info('page.info: %s', page.info())
-    else:
-        raise NotImplementedError('Search engine support not yet implemented')
-    tree = html.parse(page)
-    page.close()
-    return tree
-
 def pyw(window=WINDOW, url=None):
     '''
     navigate the web, starting at website
     '''
     in_key = ''
     while in_key != 'q':
-        if url and not URLS:
-            URLS.append(url)
-        if STATE['index'] == -1:
-            tree = fetch(URLS[STATE['index']])
-            body = tree.getroot().xpath('//body')[0]
-            encoding = tree.docinfo.encoding or 'utf8'
-            logging.debug('base URL: %s, encoding: %s', body.base_url, encoding)
-            STATE['index'] = len(URLS) - 1
+        if url and not PAGES:
+            PAGES.append(Page(url))
+        if STATE['urlindex'] == -1:
+            STATE['urlindex'] = len(PAGES) - 1
+        page = PAGES[STATE['urlindex']]
+        body = page.etree.getroot().xpath('//body')[0]
+        encoding = page.etree.docinfo.encoding or 'utf8'
+        logging.debug('base URL: %s, encoding: %s', body.base_url, encoding)
         if window is None:  # just dump to stdout
-            page = body.text_content()
             #pylint: disable=unused-variable
-            ignored, text, ignored = cleanup(page)
+            ignored, text, ignored = cleanup(body.text_content())
             print(text)
             in_key = 'q'
             break
-        elif STATE['needs_redraw']:
+        elif page.needs_redraw:
             window.clear()
             window.refresh()  # https://stackoverflow.com/a/22121866/493161
-            windowbuffer = curses.newpad(MAXLINES, WIDTH)
-            LINKS[STATE['index']] = OrderedDict({(0, 0): '.'})
-            windowbuffer.clear()
-            render(windowbuffer, body)
-        if STATE['cursor_position'] != (-1, -1):
-            cursor_position = list(STATE['cursor_position'])
-            while cursor_position[0] >= HEIGHT:
-                cursor_position[0] -= HEIGHT
-            window.move(*STATE['cursor_position'])
+            render(page.buffer, body)
+        if page.curpos != (-1, -1):
+            cursor_position = list(page.curpos)
+            cursor_position[0] %= HEIGHT
+            window.move(*cursor_position)
             curses.curs_set(2)  # make cursor visible
-            logging.debug('links: %s', LINKS[STATE['index']])
-            logging.debug('displaying from line %d', STATE['line'])
-            windowbuffer.refresh(STATE['line'], 0, 0, 0, HEIGHT - 1, WIDTH - 1)
+            logging.debug('links: %s', page.links)
+            logging.debug('displaying from line %d', page.line)
+            page.buffer.refresh(page.line, 0, 0, 0, HEIGHT - 1, WIDTH - 1)
             in_key = window.getkey()
             do_associated_action(in_key)
 
@@ -254,9 +254,9 @@ if __name__ == '__main__':
     init()
     if WINDOW:
         try:
-            curses.wrapper(pyw, sys.argv[1:])  # WINDOW is automatically passed
+            curses.wrapper(pyw, *sys.argv[1:])  # WINDOW is automatically passed
         except Exception:
             logging.exception("Program error")
             raise
     else:
-        pyw(WINDOW, sys.argv[1:])
+        pyw(WINDOW, *sys.argv[1:])
