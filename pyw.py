@@ -126,19 +126,21 @@ def pyw(window=WINDOW, url=None):
             in_key = 'q'
             break
         elif page.needs_redraw:
+            logging.debug('redrawing page')
             window.clear()
             window.refresh()  # https://stackoverflow.com/a/22121866/493161
             render(page.buffer, body)
         if page.curpos != (-1, -1):
+            logging.debug('setting cursor')
             cursor_position = list(page.curpos)
             cursor_position[0] %= HEIGHT
             window.move(*cursor_position)
             curses.curs_set(2)  # make cursor visible
-            logging.debug('links: %s', page.links)
-            logging.debug('displaying from line %d', page.line)
-            page.buffer.refresh(page.line, 0, 0, 0, HEIGHT - 1, WIDTH - 1)
-            in_key = window.getkey()
-            do_associated_action(in_key)
+        logging.debug('links: %s', page.links)
+        logging.debug('displaying from line %d', page.line)
+        page.buffer.refresh(page.line, 0, 0, 0, HEIGHT - 1, WIDTH - 1)
+        in_key = window.getkey()
+        do_associated_action(in_key)
 
 def render(screen, element, parent_style=curses.A_NORMAL, need_space=False):
     '''
