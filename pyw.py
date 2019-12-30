@@ -222,8 +222,10 @@ def activate(webpage):
     visit link at cursor, or submit current form
     '''
     here = WINDOW.getyx()
-    href = urlparse.urljoin(webpage.url, links[here])
+    href = urlparse.urljoin(webpage.url, webpage.links[here])
     logging.debug('going to: %s', href)
+    # truncate the Pages to just this one and those before it
+    PAGES[STATE['urlindex'] + 1:] = []
     PAGES.append(Page(href))
     STATE['urlindex'] = -1
 
