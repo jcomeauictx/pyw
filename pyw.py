@@ -199,8 +199,9 @@ def screen_down(webpage):
     go forward one page in buffer
     '''
     index = webpage.line + HEIGHT
-    if index > MAXLINES - HEIGHT:
-        index = MAXLINES - HEIGHT
+    if index > webpage.buffer.getyx()[0]:
+        logging.debug('already at end of page')
+        return
     webpage.line = index
 
 def screen_up(webpage):
@@ -209,7 +210,8 @@ def screen_up(webpage):
     '''
     index = webpage.line - HEIGHT
     if index < 0:
-        index = 0
+        logging.debug('already at beginning of page')
+        return
     webpage.line = index
 
 def advance_cursor(webpage):
