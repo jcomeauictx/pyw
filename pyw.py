@@ -134,15 +134,15 @@ def pyw(window=WINDOW, url=None):
             in_key = 'q'
             break
         elif page.needs_redraw:
-            logging.debug('redrawing page')
+            logging.debug('redrawing page from line %d', page.line)
             window.clear()
             window.refresh()  # https://stackoverflow.com/a/22121866/493161
             render(page.buffer, body)
             page.needs_redraw = False
         if page.curpos != (-1, -1):
-            logging.debug('setting cursor')
             cursor_position = list(page.curpos)
             cursor_position[0] %= HEIGHT
+            logging.debug('setting cursor to %s', tuple(cursor_position))
             window.move(*cursor_position)
             curses.curs_set(2)  # make cursor visible
         logging.debug('links: %s', page.links)
@@ -217,26 +217,28 @@ def advance_cursor(webpage):
     move cursor to next link or form field
     '''
     locations = list(webpage.links.keys())
-    here = tuple(add_height(webpage.line, WINDOW.getyx()))
+    here = add_height(webpage.line, WINDOW.getyx())
+    logging.debug('here: %s, adjusted: %s', WINDOW.getyx(), here)
     new = subtract_height(webpage.line, locations[locations.index(here) + 1])
-    while new[0] > HEIGHT:
+    while new[0] >= HEIGHT:
         webpage.line += HEIGHT
-        new[0] -= HEIGHT
+        new = subtract_height(HEIGHT, new)
         webpage.needs_redraw = True
-    webpage.curpos = tuple(new)
+    webpage.curpos = new
 
 def backup_cursor(webpage):
     '''
     move cursor to previous link or form field
     '''
     locations = list(webpage.links.keys())
-    here = tuple(add_height(webpage.line, WINDOW.getyx()))
+    here = add_height(webpage.line, WINDOW.getyx())
+    logging.debug('here: %s, adjusted: %s', WINDOW.getyx(), here)
     new = subtract_height(webpage.line, locations[locations.index(here) - 1])
     while new[0] < 0:
         webpage.line -= HEIGHT
-        new[0] += HEIGHT
+        new = add_height(HEIGHT, new)
         webpage.needs_redraw = True
-    webpage.curpos = tuple(new)
+    webpage.curpos = new
 
 def activate(webpage):
     '''
@@ -287,13 +289,13 @@ def canonicalize(url):
 
 def add_height(height, position):
     '''
-    make a list out of tuple `position` and add height to it
+    add height to position[0] and return adjusted tuple
     '''
-    return [position[0] + height, position[1]]
+    return position[0] + height, position[1]
 
 def subtract_height(height, position):
     '''
-    make a list out of tuple `position` and subtract height from it
+    subtract height from position[0] and return adjusted tuple
     '''
     return [position[0] - height, position[1]]
 
