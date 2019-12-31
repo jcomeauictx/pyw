@@ -31,6 +31,7 @@ if sys.stdin.isatty():
     WINDOW = curses.initscr()
     WINDOW.keypad(True)
     HEIGHT, WIDTH = WINDOW.getmaxyx()
+    HEIGHT -= 1  # make room for a status line
 else:
     WINDOW = None
     HEIGHT, WIDTH = None, None
