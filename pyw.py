@@ -231,7 +231,7 @@ def backup_cursor(webpage):
     locations = list(webpage.links.keys())
     here = tuple(add_height(webpage.line, WINDOW.getyx()))
     new = subtract_height(webpage.line, locations[locations.index(here) - 1])
-    while new[0] < HEIGHT:
+    while new[0] < 0:
         webpage.line -= HEIGHT
         new[0] += HEIGHT
         webpage.needs_redraw = True
@@ -241,7 +241,7 @@ def activate(webpage):
     '''
     visit link at cursor, or submit current form
     '''
-    here = add_height(webpage.line, WINDOW.getyx())
+    here = tuple(add_height(webpage.line, WINDOW.getyx()))
     href = urlparse.urljoin(webpage.url, webpage.links[here])
     logging.debug('going to: %s', href)
     # truncate the Pages to just this one and those before it
